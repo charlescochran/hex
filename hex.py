@@ -15,7 +15,8 @@ class Hex():
                        'main': (201, 173, 200),
                        'p1': (255, 80, 80),
                        'p2': (54, 92, 255)}
-        self.screen_size = (1620, 1080)
+        self.screen_width = 1620
+        pg.init()
         self._init_game()
         self._init_board()
         self._init_screen()
@@ -29,7 +30,8 @@ class Hex():
         self.board = [[0] * self.board_size for _ in range(self.board_size)]
 
     def _init_screen(self):
-        pg.init()
+        # Choose an aspect ratio for the screen (change with caution)
+        self.screen_size = (self.screen_width, self.screen_width / 1.5)
         # Initialize the window to be half as wide as the physical display
         init_display_width = pg.display.Info().current_w / 2
         init_display_height = init_display_width * self.screen_size[1] / self.screen_size[0]
@@ -40,13 +42,44 @@ class Hex():
         # Draw background
         self.screen.fill(self.colors['bg'])
 
+        # Draw borders
+
+        # Arbitrarily choose a horizontal position for the top left corner of the border
+        top_left = []
+        top_left.append(int(self.screen_size[0] / 15))
+        # Then, do some math to find the corresponding vertical position for
+        # the top left corner which, when mirrored to the bottom right corner,
+        # will result in a border with an appropriate aspect ratio
+        top_left.append(int((((2 / 3) - math.tan(math.pi / 6)) * self.screen_size[0] / 2)
+                            + (math.tan(math.pi / 6) * top_left[0])))
+        # Find the other three corners' coordinates based on the top left corner's coordinates
+        top_right = (int((2 * self.screen_size[0] - top_left[0]) / 3), top_left[1])
+        bottom_right = (self.screen_size[0] - top_left[0],
+                        self.screen_size[1] - top_left[1])
+        bottom_left = (self.screen_size[0] - top_right[0],
+                       self.screen_size[1] - top_right[1])
+        # Actually draw the border
+        pg.draw.line(self.screen, self.colors['p1'], top_left, top_right, width=10)
+        pg.draw.line(self.screen, self.colors['p2'], top_right, bottom_right, width=10)
+        pg.draw.line(self.screen, self.colors['p1'], bottom_right, bottom_left, width=10)
+        pg.draw.line(self.screen, self.colors['p2'], bottom_left, top_left, width=10)
+
         # Draw board
+
+        # The number of hex radii in between the top left hex's center
+        # and the top left edge of the border.
+        margin = 3
+        board_width = bottom_right[0] - top_left[0]
+        # This complicated calculation specifies the radius of each
+        # hexagon, in pixels. It ensures the board always fits neatly
+        # within the border, no matter what board_size is used.
+        self.hex_radius = board_width / (((3 * self.board_size) + margin) * math.cos(math.pi / 6))
         self.line_width = int(self.screen_size[0] / 180)
-        self.hex_radius = int(self.screen_size[0] / 36)
         x_shift_offset = self.hex_radius * math.cos(math.pi / 6)
         x_shift_width = 2 * x_shift_offset
         y_shift_height = self.hex_radius * (1 + math.sin(math.pi / 6))
-        hex_origin = (int(self.screen_size[0] / (36 / 5)), int(self.screen_size[1] / (16 / 3)))
+        hex_origin = (top_left[0] + self.hex_radius * margin * math.cos(math.pi / 6),
+                      top_left[1] + self.hex_radius * margin * math.sin(math.pi / 6))
         self.hex_positions = []
         for j in range(self.board_size):
             row = []
@@ -58,28 +91,6 @@ class Hex():
         for row in self.hex_positions:
             for pos in row:
                 self._draw_hexagon(pos, self.colors['main'], False)
-
-        # Draw borders
-        margin = self.hex_radius * 3
-
-        top_left_margin = (-margin * math.cos(math.pi / 6), -margin * math.sin(math.pi / 6))
-        top_left = tuple(map(sum, zip(self.hex_positions[0][0], top_left_margin)))
-        top_right_margin = (margin * math.tan(math.pi / 6) * math.cos(math.pi / 3),
-                            -margin * math.tan(math.pi / 6) * math.sin(math. pi / 3))
-        top_right = tuple(map(sum, zip(
-            self.hex_positions[0][self.board_size - 1], top_right_margin)))
-        bottom_right_margin = (margin * math.cos(math.pi / 6), margin * math.sin(math.pi / 6))
-        bottom_right = tuple(map(sum, zip(
-            self.hex_positions[self.board_size - 1][self.board_size - 1], bottom_right_margin)))
-        bottom_left_margin = (-margin * math.tan(math.pi / 6) * math.cos(math.pi / 3),
-                              margin * math.tan(math.pi / 6) * math.sin(math. pi / 3))
-        bottom_left = tuple(map(sum, zip(
-            self.hex_positions[self.board_size - 1][0], bottom_left_margin)))
-
-        pg.draw.line(self.screen, self.colors['p1'], top_left, top_right, width=10)
-        pg.draw.line(self.screen, self.colors['p2'], top_right, bottom_right, width=10)
-        pg.draw.line(self.screen, self.colors['p1'], bottom_right, bottom_left, width=10)
-        pg.draw.line(self.screen, self.colors['p2'], bottom_left, top_left, width=10)
 
         # Draw logo
         small_font = pg.font.SysFont('Ubuntu Mono', int(self.hex_radius * 1.5))
