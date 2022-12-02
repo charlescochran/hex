@@ -93,26 +93,28 @@ class Hex():
                 self._draw_hexagon(pos, self.colors['main'], False)
 
         # Draw logo
-        small_font = pg.font.SysFont('Ubuntu Mono', int(self.hex_radius * 1.5))
-        large_font = pg.font.SysFont('Ubuntu Mono', int(self.hex_radius * 5), bold=True)
-        top_right_hex = self.hex_positions[0][self.board_size - 1]
-        logo_origin = (top_right_hex[0] + int(self.hex_radius * 3.6),
-                       top_right_hex[1] - int(self.hex_radius * 2.5))
+
+        # Create fonts, sized according to screen width
+        small_font = pg.font.SysFont('Ubuntu Mono', int(self.screen_size[0] / 24))
+        large_font = pg.font.SysFont('Ubuntu Mono', int(self.screen_size[0] * 5 / 36), bold=True)
+        # Choose text origins based on screen size
+        logo_origin = (self.screen_size[0] * 93 / 128, self.screen_size[1] / 8)
+        logo_origin_2 = (self.screen_size[0] * 3 / 4, self.screen_size[1] / 6)
+        # Draw the text
         self.screen.blit(small_font.render('the game of', True, self.colors['main']), logo_origin)
-        logo_origin_2 = (logo_origin[0] + int(self.hex_radius * 0.9),
-                         logo_origin[1] + int(self.hex_radius * 1))
         self.screen.blit(large_font.render('hex', True, self.colors['main']), logo_origin_2)
 
         # Create buttons
-        # def __init__(self, screen, pos, font_size, text, text_color, button_color, click_cb):
-        bottom_left_hex = self.hex_positions[self.board_size - 1][0]
-        button_origin = (bottom_left_hex[0] - int(self.hex_radius * 10),
-                         bottom_left_hex[1] - int(self.hex_radius * 4))
-        self.undo_button = Button(self.screen, button_origin, int(self.hex_radius * 1.2), 'undo',
+
+        # Define position constants
+        font_size = int(self.screen_size[0] / 30)
+        undo_button_pos = (self.screen_size[0] / 10, self.screen_size[1] * 7 / 10)
+        swap_button_pos = (self.screen_size[0] / 10, self.screen_size[1] * 4 / 5)
+        # Create the buttons and add the buttons list
+        self.undo_button = Button(self.screen, undo_button_pos, font_size, 'undo',
                                   self.colors['bg'], self.colors['main'], self.undo_button_cb,
                                   False)
-        button_origin_2 = (button_origin[0], button_origin[1] + int(self.hex_radius * 2.5))
-        self.swap_button = Button(self.screen, button_origin_2, int(self.hex_radius * 1.2), 'swap',
+        self.swap_button = Button(self.screen, swap_button_pos, font_size, 'swap',
                                   self.colors['bg'], self.colors['main'], self.swap_button_cb,
                                   False)
         self.buttons = [self.undo_button, self.swap_button]
