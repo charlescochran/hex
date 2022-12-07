@@ -5,21 +5,34 @@ import math
 import matplotlib.path
 import numpy as np
 import time
+from enum import Enum
+
+from bot import Bot
 
 
 class Hex():
 
     def __init__(self):
+        # Player Modes:
+        #   HH - Both players are human; none are bots.
+        #   HB - The first player is human; the second is a bot.
+        #   BH - The first player is a bot; the second is human.
+        self.Mode = Enum('Mode', ['HH', 'HB', 'BH'])
+
+        # Game Parameters
+        self.mode = self.Mode.HB
         self.board_size = 11
         self.colors = {'bg': (30, 30, 30),
                        'main': (201, 173, 200),
                        'p1': (255, 80, 80),
                        'p2': (54, 92, 255)}
         self.screen_width = 1620
+
         pg.init()
         self._init_game()
         self._init_board()
         self._init_screen()
+        self._init_bot()
         self._play()
 
     def _init_game(self):
@@ -112,29 +125,49 @@ class Hex():
         swap_button_pos = (self.screen_size[0] / 10, self.screen_size[1] * 4 / 5)
         # Create the buttons and add the buttons list
         self.undo_button = Button(self.screen, undo_button_pos, font_size, 'undo',
-                                  self.colors['bg'], self.colors['main'], self.undo_button_cb,
+                                  self.colors['bg'], self.colors['main'], self.undo,
                                   False)
         self.swap_button = Button(self.screen, swap_button_pos, font_size, 'swap',
-                                  self.colors['bg'], self.colors['main'], self.swap_button_cb,
+                                  self.colors['bg'], self.colors['main'], self.swap,
                                   False)
         self.buttons = [self.undo_button, self.swap_button]
 
-    def undo_button_cb(self):
-        self._fill_hexagon(self.prev_moves[-1], 0)
-        self.prev_moves.pop()
-        # If we are undoing a swap
-        if len(self.prev_moves) == 0 and self.player == 1:
-            self._move(self.swapped_index)
-            self.swapped_index = "nope"
-        else:
-            self.player = (self.player % 2) + 1
+    def _init_bot(self):
+        self.bot = Bot(self.board_size, self.move, self.swap)
+
+    def undo(self, currently_swapping=False):
+        # If one of the players is a bot, we want the undo button to undo both
+        # the human player's last move and the bot's last move. However, if
+        # this undo is part of a swap, only undo once.
+        double_undo = self.mode is not self.Mode.HH and not currently_swapping
+        # For each undo...
+        for _ in range(2 if double_undo else 1):
+            # Clear the last hexagon and remove its indices from the previous
+            # moves list
+            self._fill_hexagon(self.prev_moves[-1], 0)
+            self.prev_moves.pop()
+            # If we are undoing a swap...
+            if len(self.prev_moves) == 0 and self.player == 1:
+                # Replace the first player's swapped piece. Note that if the
+                # first player is a human and the second is a bot, the bot's
+                # response will not be triggered, and the second undo will undo
+                # the human's replaced move (allowing them to choose a
+                # different starting move).
+                self.move(self.swapped_index, bot_should_respond=False)
+                self.swapped_index = None
+            # Otherwise, if we are not currently swapping, toggle the player
+            elif not currently_swapping:
+                self.player = (self.player % 2) + 1
+        # Always update the buttons after an undo
         self._update_buttons()
 
-    def swap_button_cb(self):
+    def swap(self):
         self.swapped_index = self.prev_moves[-1]
-        self.undo_button_cb()
-        self.player = 2
-        self._move((self.swapped_index[1], self.swapped_index[0]))
+        # First, undo the first player's first move
+        self.undo(currently_swapping=True)
+        # Then, replace it with the second player's first move, mirroring the first player's
+        self.move((self.swapped_index[1], self.swapped_index[0]),
+                  bot_should_respond=self.mode is self.Mode.BH, currently_swapping=True)
 
     def _draw_hexagon(self, pos, color, filled):
         hex_vertices = self._calc_hex_vertices(pos)
@@ -151,6 +184,10 @@ class Hex():
     def _play(self):
         self._update_display()
         self.running = True
+        # If the bot needs to go first, make it
+        if self.mode is self.Mode.BH:
+            self.bot.move(self.board)
+            self._update_display()
         while self.running:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
@@ -212,34 +249,42 @@ class Hex():
         hex_path = matplotlib.path.Path(np.array([vertex for vertex in hex_vertices]))
         if hex_path.contains_point(click_screen_pos):
             if self.board[nearest_hex_index[1]][nearest_hex_index[0]] == 0:
-                self._move(nearest_hex_index)
+                self.move(nearest_hex_index, bot_should_respond=self.mode is not self.Mode.HH)
 
-    def _move(self, index):
+    def move(self, index, bot_should_respond=False, currently_swapping=False):
         self.prev_moves.append(index)
         self._fill_hexagon(index, self.player)
         walls = [False, False]
         self._check_for_walls(walls, index, [])
-        # If the current player's hex chain is touching both of his walls, end the game
+        # If the current player's hex chain is touching both of his walls, end
+        # the game
         if walls[0] and walls[1]:
             print(f'Game over! Player {self.player} wins!')
             self.running = False
         # Toggle whose turn it is
         self.player = (self.player % 2) + 1
+        # If the bot should respond (indicating that this is a human move and
+        # the other player is a bot)...
+        if bot_should_respond:
+            # If this was the human's first move, give the bot the option of swapping
+            if len(self.prev_moves) == 1 and not currently_swapping:
+                self.bot.can_swap(self.board)
+            # Otherwise, trigger the bot's response move
+            else:
+                self.bot.move(self.board)
+        # Always update the buttons after a move
         self._update_buttons()
 
     def _update_buttons(self):
-        if len(self.prev_moves) == 1:
+        self.undo_button.enabled = False
+        self.swap_button.enabled = False
+        if len(self.prev_moves) > 1:
             self.undo_button.enabled = True
-            self.undo_button.redraw()
-            if self.player == 2:
-                self.swap_button.enabled = True
-                self.swap_button.redraw()
-        elif self.swap_button.enabled:
-            self.swap_button.enabled = False
-            self.swap_button.redraw()
-        if len(self.prev_moves) < 1:
-            self.undo_button.enabled = not self.undo_button.enabled
-            self.undo_button.redraw()
+        elif len(self.prev_moves) == 1:
+            self.undo_button.enabled = self.mode is not self.Mode.BH
+            self.swap_button.enabled = self.player == 2
+        self.undo_button.redraw()
+        self.swap_button.redraw()
 
     def _check_for_walls(self, walls, index, blacklist):
         # If current hex has already by checked or is not occupied by the player, return
