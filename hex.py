@@ -235,7 +235,7 @@ class Hex():
         for button in self.buttons:
             if button.rect.collidepoint(click_screen_pos):
                 button.handle_click()
-        nearest_hex_index = ()
+        nearest_hex_index = (-1, -1)
         min_dist = math.inf
         for j in range(len(self.hex_positions)):
             for i in range(len(self.hex_positions[j])):
