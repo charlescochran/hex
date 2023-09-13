@@ -304,8 +304,8 @@ class Hex():
 
     def _get_neighbor_indices(self, index):
         # When given an hex's index, return the indices of all of its
-        # neighbors. A corner hex has 2 neighbors, an edge hex has 4 neighbors,
-        # and all other hexs have 6 neighbors.
+        # neighbors. A corner hex has 2 or 3 neighbors, an edge hex has 4
+        # neighbors, and all other hexs have 6 neighbors.
         neighbor_indices = []
         for j in range(index[1] - 1, index[1] + 2):
             for i in range(index[0] - 1, index[0] + 2):
