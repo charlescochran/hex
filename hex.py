@@ -214,6 +214,8 @@ class Hex():
                             self.screen_size[1] * self.scale_factor)
         self.scaled_origin = ((self.display_size[0] - self.scaled_size[0]) / 2,
                               (self.display_size[1] - self.scaled_size[1]) / 2)
+        # Blackout the display
+        self.display.fill((0, 0, 0))
         # Copy the virtual screen surface onto the actual display surface,
         # scaling and translating it appropriately
         self.display.blit(pg.transform.scale(self.screen, self.scaled_size), self.scaled_origin)
