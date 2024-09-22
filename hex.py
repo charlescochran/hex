@@ -1,11 +1,10 @@
-#! /usr/bin/env python3
-
-import pygame as pg
+import asyncio
 import math
-import matplotlib.path
-import numpy as np
 import time
 from enum import Enum
+
+import matplotlib.path
+import pygame as pg
 
 from bot import Bot
 
@@ -33,7 +32,6 @@ class Hex():
         self._init_board()
         self._init_screen()
         self._init_bot()
-        self._play()
 
     def _init_game(self):
         self.player = 1
@@ -181,7 +179,7 @@ class Hex():
                                  hex_pos[1] + self.hex_radius * math.sin(angle)))
         return hex_vertices
 
-    def _play(self):
+    async def play(self):
         self._update_display()
         self.running = True
         # If the bot needs to go first, make it
@@ -204,6 +202,7 @@ class Hex():
                         screen_y = (click_pos[1] - self.scaled_origin[1]) / self.scale_factor
                         self._handle_click((screen_x, screen_y))
                         self._update_display()
+            await asyncio.sleep(0)
             time.sleep(1/100)
 
     def _update_display(self):
@@ -218,7 +217,7 @@ class Hex():
         self.display.fill((0, 0, 0))
         # Copy the virtual screen surface onto the actual display surface,
         # scaling and translating it appropriately
-        self.display.blit(pg.transform.scale(self.screen, self.scaled_size), self.scaled_origin)
+        self.display.blit(pg.transform.smoothscale(self.screen, self.scaled_size), self.scaled_origin)
         pg.display.flip()
 
     def _fill_hexagon(self, index, player):
@@ -248,7 +247,7 @@ class Hex():
                     nearest_hex_index = (i, j)
         hex_vertices = self._calc_hex_vertices(
             self.hex_positions[nearest_hex_index[1]][nearest_hex_index[0]])
-        hex_path = matplotlib.path.Path(np.array([vertex for vertex in hex_vertices]))
+        hex_path = matplotlib.path.Path([vertex for vertex in hex_vertices])
         if hex_path.contains_point(click_screen_pos):
             if self.board[nearest_hex_index[1]][nearest_hex_index[0]] == 0:
                 self.move(nearest_hex_index, bot_should_respond=self.mode is not self.Mode.HH)
@@ -345,7 +344,3 @@ class Button():
         self.rect = pg.draw.rect(self._screen, colors[1], (x - margin, y - margin,
                                                           w + 2 * margin, h + 2 * margin))
         self._screen.blit(text_render, (x, y))
-
-
-if __name__=='__main__':
-    hex = Hex()
