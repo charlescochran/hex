@@ -19,7 +19,7 @@ class Hex():
         self.Mode = Enum('Mode', ['HH', 'HB', 'BH'])
 
         # Game Parameters
-        self.mode = self.Mode.HB
+        self.mode = self.Mode.HH
         self.board_size = 11
         self.colors = {'bg': (30, 30, 30),
                        'main': (201, 173, 200),
