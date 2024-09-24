@@ -5,8 +5,8 @@ import PIL, numpy, cycler, kiwisolver, matplotlib, dateutil, six
 
 import asyncio
 
-import hex
+import game
 
 
 if __name__ == '__main__':
-    asyncio.run(hex.Hex().play())
+    asyncio.run(game.Game().play())
