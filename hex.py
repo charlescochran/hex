@@ -103,6 +103,16 @@ class Hex():
             for pos in row:
                 self._draw_hexagon(pos, self.colors['main'], False)
 
+        font = pg.font.SysFont('Ubuntu Mono', round(self.hex_radius))
+        # Draw row letters down left side
+        for j, row in enumerate(self.hex_positions):
+            pos = (row[0][0] - 2.8 * self.hex_radius, row[0][1] - 0.5 * self.hex_radius)
+            self.screen.blit(font.render(chr(j + 97), True, self.colors['main']), pos)
+        # Draw col numbers across top
+        for i, position in enumerate(self.hex_positions[0]):
+            pos = (position[0] - 1.5 * self.hex_radius, position[1] - 2.8 * self.hex_radius)
+            self.screen.blit(font.render(str(i + 1), True, self.colors['main']), pos)
+
         # Draw logo
 
         # Create fonts, sized according to screen width
