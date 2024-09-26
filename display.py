@@ -10,6 +10,8 @@ import pygame as pg
 class Display():
 
     def __init__(self):
+        self._font_name = 'assets/fonts/UbuntuMono-R.ttf'
+        self._bold_font_name = 'assets/fonts/UbuntuMono-B.ttf'
         self._buttons = []
         self.colors = {'bg': (30, 30, 30),
                        'main': (201, 173, 200),
@@ -113,7 +115,7 @@ class Display():
                      width=self.line_width)
         pg.draw.line(self.screen, self.colors['p2'], self.border_pos[3], self.border_pos[0],
                      width=self.line_width)
-        font = pg.font.SysFont('Ubuntu Mono', round(self.hex_radius))
+        font = pg.font.Font(self._font_name, round(self.hex_radius))
         # Draw row letters down left side
         for r, row in enumerate(self.hex_positions):
             pos = (row[0][0] - 2.8 * self.hex_radius, row[0][1] - 0.5 * self.hex_radius)
@@ -125,8 +127,8 @@ class Display():
 
     def draw_logo(self):
         # Create fonts, sized according to screen width
-        small_font = pg.font.SysFont('Ubuntu Mono', int(self.size[0] / 24))
-        large_font = pg.font.SysFont('Ubuntu Mono', int(self.size[0] * 5 / 36), bold=True)
+        small_font = pg.font.Font(self._font_name, int(self.size[0] / 24))
+        large_font = pg.font.Font(self._bold_font_name, int(self.size[0] * 5 / 36))
         # Choose text origins based on screen size
         logo_origin = (self.size[0] * 93 / 128, self.size[1] / 8)
         logo_origin_2 = (self.size[0] * 3 / 4, self.size[1] / 6)
@@ -141,7 +143,7 @@ class Display():
         self._add_buttons(data, pos, vertical=True)
 
     def _add_buttons(self, data, pos, vertical):
-        font = pg.font.SysFont('Ubuntu Mono', int(self.size[0] / 30))
+        font = pg.font.Font(self._font_name, int(self.size[0] / 30))
         for (label, enabled_cb, click_cb) in data:
             button = Button(self, font, tuple(pos), label, enabled_cb, click_cb)
             self._buttons.append(button)
