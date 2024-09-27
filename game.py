@@ -1,34 +1,33 @@
 from enum import Enum
-import asyncio
-import time
-
-import pygame as pg
 
 from bot import Bot
-from display import Display
 
 
 class Game():
 
-    def __init__(self):
-        # Player Modes:
-        #   HH - Both players are human; none are bots.
-        #   HB - The first player is human; the second is a bot.
-        #   BH - The first player is a bot; the second is human.
-        self.Mode = Enum('Mode', ['HH', 'HB', 'BH'])
-        pg.init()
-        self._init_game()
-        self._init_board()
-        self._init_display()
+    # Player Modes:
+    #   HH - Both players are human; none are bots.
+    #   HB - The first player is human; the second is a bot.
+    #   BH - The first player is a bot; the second is human.
+    Mode = Enum('Mode', ['HH', 'HB', 'BH'])
+
+    def __init__(self, display, board_size, mode):
+        self._init_game(mode)
+        self._init_board(board_size)
+        self._init_display(display)
         self._init_bot()
 
-    def _init_game(self):
-        self.mode = self.Mode.HH
+    def _init_game(self, mode):
+        self.mode = mode
         self.player = 1
         self.prev_moves = []
 
-    def _init_display(self):
-        self.display = Display()
+    def _init_board(self, board_size):
+        self.board_size = board_size
+        self.board = [[0] * board_size for _ in range(board_size)]
+
+    def _init_display(self, display):
+        self.display = display
         self.display.calc_positions(self.board_size)
         self.display.register_hex_click_cb(self.hex_click_cb)
         self.display.add_game_buttons((self.undo_enabled, self.undo),
@@ -38,12 +37,11 @@ class Game():
         self.display.draw_logo()
         self.display.draw_buttons()
 
-    def _init_board(self):
-        self.board_size = 11
-        self.board = [[0] * self.board_size for _ in range(self.board_size)]
-
     def _init_bot(self):
         self.bot = Bot(self.board_size, self.move, self.swap)
+        # If the bot needs to go first, make it
+        if self.mode is self.Mode.BH:
+            self.bot.move(self.board)
 
     def undo_enabled(self):
         if len(self.prev_moves) > 1:
@@ -58,25 +56,6 @@ class Game():
     def hex_click_cb(self, index):
         if self.board[index[0]][index[1]] == 0:
             self.move(index, bot_should_respond=self.mode is not self.Mode.HH)
-
-    async def play(self):
-        self.running = True
-        # If the bot needs to go first, make it
-        if self.mode is self.Mode.BH:
-            self.bot.move(self.board)
-        self.display.update()
-        while self.running:
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    self.running = False
-                elif event.type == pg.VIDEORESIZE:
-                    self.display.update()
-                elif event.type == pg.MOUSEBUTTONDOWN:
-                    if pg.mouse.get_pressed()[0]:
-                        self.display.handle_click(pg.mouse.get_pos())
-                        self.display.update()
-            await asyncio.sleep(0)
-            time.sleep(1/100)
 
     def move(self, index, bot_should_respond=False, currently_swapping=False):
         self.prev_moves.append(index)
