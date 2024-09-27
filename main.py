@@ -4,11 +4,12 @@
 import PIL, numpy, cycler, kiwisolver, matplotlib, dateutil, six
 
 import asyncio
+import random
 import time
 
 import pygame as pg
 
-import game, display
+import game, display, menu
 
 
 class Main():
@@ -16,9 +17,22 @@ class Main():
     def __init__(self):
         pg.init()
         self._display = display.Display()
-        self._game = game.Game(self._display, 11, game.Game.Mode.HH)
 
-    async def play(self):
+    def start_menu(self):
+        self._display.reset()
+        self._menu = menu.Menu(self._display, self.start_game)
+
+    def start_game(self, board_size, mode):
+        if mode == 4:  # "1P (random)" mode
+            mode = random.randint(2, 3)
+        self._display.reset()
+        self._game = game.Game(self._display, board_size, mode, self.game_over)
+
+    def game_over(self, winner):
+        print(f'Game over! Player {winner} wins!')
+        self._display.reset(clear=False)
+
+    async def loop(self):
         self.running = True
         self._display.update()
         while self.running:
@@ -36,4 +50,6 @@ class Main():
 
 
 if __name__ == '__main__':
-    asyncio.run(Main().play())
+    main = Main()
+    main.start_menu()
+    asyncio.run(main.loop())

@@ -12,7 +12,6 @@ class Display():
     def __init__(self):
         self._font_name = 'assets/fonts/UbuntuMono-R.ttf'
         self._bold_font_name = 'assets/fonts/UbuntuMono-B.ttf'
-        self._buttons = []
         self.colors = {'bg': (30, 30, 30),
                        'main': (201, 173, 200),
                        'p1': (255, 80, 80),
@@ -27,8 +26,7 @@ class Display():
         self._display = pg.display.set_mode((init_display_width, init_display_height), pg.RESIZABLE)
         # Create the virtual screen surface on which to draw everything
         self.screen = pg.Surface((self.size))
-        # Draw background
-        self.screen.fill(self.colors['bg'])
+        self.reset()
 
     def calc_positions(self, board_size):
         self.border_pos = self._calc_border_position()
@@ -126,24 +124,64 @@ class Display():
             self.screen.blit(font.render(str(c + 1), True, self.colors['main']), pos)
 
     def draw_logo(self):
-        # Create fonts, sized according to screen width
-        small_font = pg.font.Font(self._font_name, int(self.size[0] / 24))
-        large_font = pg.font.Font(self._bold_font_name, int(self.size[0] * 5 / 36))
-        # Choose text origins based on screen size
-        logo_origin = (self.size[0] * 93 / 128, self.size[1] / 8)
-        logo_origin_2 = (self.size[0] * 3 / 4, self.size[1] / 6)
-        # Draw the text
-        self.screen.blit(small_font.render('the game of', True, self.colors['main']),
-                          logo_origin)
-        self.screen.blit(large_font.render('hex', True, self.colors['main']), logo_origin_2)
+        # # Create fonts, sized according to screen width
+        # small_font = pg.font.Font(self._font_name, int(self.size[0] / 24))
+        # large_font = pg.font.Font(self._bold_font_name, int(self.size[0] * 5 / 36))
+        # # Choose text origins based on screen size
+        # logo_origin = (self.size[0] * 93 / 128, self.size[1] / 8)
+        # logo_origin_2 = (self.size[0] * 3 / 4, self.size[1] / 6)
+        # # Draw the text
+        # self.screen.blit(small_font.render('the game of', True, self.colors['main']),
+        #                   logo_origin)
+        # self.screen.blit(large_font.render('hex', True, self.colors['main']), logo_origin_2)
+        self.draw_text(
+            'the game of', (self.size[0] * 93 / 128, self.size[1] / 8), int(self.size[0] / 24)
+        )
+        self.draw_text(
+            'hex', (self.size[0] * 3 / 4, self.size[1] / 6), int(self.size[0] * 5 / 36), bold=True
+        )
 
-    def add_game_buttons(self, undo_data, swap_data):
-        data = (('undo', *undo_data), ('swap', *swap_data))
+    def draw_text(self, text, pos, size, color=None, bold=False):
+        font_name = self._bold_font_name if bold else self._font_name
+        font = pg.font.Font(font_name, size)
+        if color is None:
+            color = self.colors['main']
+        self.screen.blit(font.render(text, True, color), pos)
+
+    def add_game_buttons(self, undo_enabled_cb, undo_click_cb, swap_enabled_cb, swap_click_cb):
+        data = (('undo', undo_enabled_cb, undo_click_cb), ('swap', swap_enabled_cb, swap_click_cb))
         pos = [self.size[0] / 10, self.size[1] * 7 / 10]
         self._add_buttons(data, pos, vertical=True)
 
-    def _add_buttons(self, data, pos, vertical):
+    def add_board_size_buttons(self, enabled_cb, click_cb):
+        # Example: 5x5 button will call enabled_cb(5) and click_cb(5)
+        # Note: default argument n=n prevents late binding
+        data = [(f'{n}x{n}', lambda n=n: enabled_cb(n), lambda n=n: click_cb(n))
+                for n in range(5, 18, 2)]
+        pos = [self.size[0] / 8, self.size[1] / 5]
+        self._add_buttons(data, pos, vertical=False, header='size:')
+
+    def add_mode_buttons(self, enabled_cb, click_cb):
+        # Example: 2P button will call enabled_cb(1) and click_cb(1)
+        labels = ('2P', '1P (human first)', '1P (bot first)', '1P (random)')
+        # Note: default argument n=n prevents late binding
+        # Note: n + 1 because one-indexing matches game.Game.Mode enum
+        data = [(labels[n], lambda n=n: enabled_cb(n + 1), lambda n=n: click_cb(n + 1))
+                for n in range(len(labels))]
+        pos = [self.size[0] / 8, self.size[1] * 2 / 5]
+        self._add_buttons(data, pos, vertical=False, header='mode:')
+
+    def add_start_button(self, enabled_cb, click_cb):
+        data = (('start', enabled_cb, click_cb),)
+        pos = [self.size[0] / 8, self.size[1] * 3 / 5]
+        self._add_buttons(data, pos, vertical=False)
+
+    def _add_buttons(self, data, pos, vertical, header=None):
         font = pg.font.Font(self._font_name, int(self.size[0] / 30))
+        if header:
+            render = font.render(header, True, self.colors['main'])
+            self.screen.blit(render, pos)
+            pos[1] += render.get_height() + 0.75 * font.get_linesize()
         for (label, enabled_cb, click_cb) in data:
             button = Button(self, font, tuple(pos), label, enabled_cb, click_cb)
             self._buttons.append(button)
@@ -164,11 +202,15 @@ class Display():
         # coordinates to virtual screen coordinates
         screen_x = (display_pos[0] - self.scaled_origin[0]) / self.scale_factor
         screen_y = (display_pos[1] - self.scaled_origin[1]) / self.scale_factor
-        for r, row in enumerate(self.hex_vertices):
-            for c, vertices in enumerate(row):
-                if matplotlib.path.Path(vertices).contains_point((screen_x, screen_y)):
-                    self.hex_click_cb((r, c))
-                    return
+        try:
+            for r, row in enumerate(self.hex_vertices):
+                for c, vertices in enumerate(row):
+                    if matplotlib.path.Path(vertices).contains_point((screen_x, screen_y)):
+                        self.hex_click_cb((r, c))
+                        return
+        except AttributeError:
+            # Don't crash if the board hasn't been created yet
+            pass
         for button in self._buttons:
             if button.rect.collidepoint((screen_x, screen_y)):
                 button.handle_click()
@@ -188,6 +230,19 @@ class Display():
         self._display.blit(pg.transform.smoothscale(self.screen, self.scaled_size),
                            self.scaled_origin)
         pg.display.flip()
+
+    def reset(self, clear=True):
+        try:
+            del self.border_pos
+            del self.hex_positions
+            del self.hex_vertices
+            del self.hex_click_cb
+        except AttributeError:
+            pass
+        self._buttons = []
+        if clear:
+            self.screen.fill(self.colors['bg'])
+
 
 @dataclass
 class Button:

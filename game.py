@@ -11,8 +11,9 @@ class Game():
     #   BH - The first player is a bot; the second is human.
     Mode = Enum('Mode', ['HH', 'HB', 'BH'])
 
-    def __init__(self, display, board_size, mode):
-        self._init_game(mode)
+    def __init__(self, display, board_size, mode, game_over_cb):
+        self._game_over_cb = game_over_cb
+        self._init_game(self.Mode(mode))
         self._init_board(board_size)
         self._init_display(display)
         self._init_bot()
@@ -30,8 +31,7 @@ class Game():
         self.display = display
         self.display.calc_positions(self.board_size)
         self.display.register_hex_click_cb(self.hex_click_cb)
-        self.display.add_game_buttons((self.undo_enabled, self.undo),
-                                      (self.swap_enabled, self.swap))
+        self.display.add_game_buttons(self.undo_enabled, self.undo, self.swap_enabled, self.swap)
         self.display.draw_board(self.board_size)
         self.display.draw_border()
         self.display.draw_logo()
@@ -66,8 +66,8 @@ class Game():
         # If the current player's hex chain is touching both of his walls, end
         # the game
         if walls[0] and walls[1]:
-            print(f'Game over! Player {self.player} wins!')
-            self.running = False
+            self._game_over_cb(self.player)
+            # return ??
         # Toggle whose turn it is
         self.player = (self.player % 2) + 1
         # If the bot should respond (indicating that this is a human move and
